@@ -1,5 +1,9 @@
 import re
 import warnings
+
+# suppress UserWarning from Transformers
+warnings.filterwarnings("ignore")
+
 from urllib.parse import urlparse
 
 import pandas as pd
@@ -8,18 +12,15 @@ import torch
 import validators
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-# suppress UserWarning from Transformers
-warnings.filterwarnings("ignore")
 
 tokenizer = AutoTokenizer.from_pretrained("stevhliu/my_awesome_model")
 model = AutoModelForSequenceClassification.from_pretrained("stevhliu/my_awesome_model")
 
-# regex for any string containing Satire/Satircal
 CATEGORIES_TO_FLAG = {
     "Satire": [
         re.compile(r"Satire", re.IGNORECASE),
         re.compile(r"Satirical", re.IGNORECASE),
-    ]
+    ],
 }
 
 # url2table heading
@@ -111,30 +112,32 @@ def generate_report(url):
             category for category, sentiment in sentiments.items() if sentiment == "negative"
         ]
 
-    if any(
-        domain in extract_known_problematic_websites("https://en.wikipedia.org/wiki/List_of_fake_news_websites")
-        for domain in sentiments.keys()
-    ):
-        report["known_problematic_websites"] = [
-            domain
+    for site in KNOWN_LISTS.items():
+        if any(
+            domain in extract_known_problematic_websites(site)
             for domain in sentiments.keys()
-            if domain in extract_known_problematic_websites("https://en.wikipedia.org/wiki/List_of_fake_news_websites")
-        ]
+        ):
+            report["known_problematic_websites"] = [
+                domain
+                for domain in sentiments.keys()
+                if domain in extract_known_problematic_websites(site)
+            ]
 
     for category, regexes in CATEGORIES_TO_FLAG.items():
-        if any(regex.search(category) for regex in regexes):
-            report["flagged_categories"].append(category)
-            break
+        for regex in regexes:
+            if any(regex.search(category) for category in categories):
+                report["flagged_categories"].append(category)
 
     return report
 
 
-DOMAIN = "https://google.com"
+DOMAIN = "https://wordpress.com"
 report = generate_report(DOMAIN)
 
-# if len of any list > 0, report concern
 if any(len(value) > 0 for value in report.values()):
     print("Website is flagged for the following reasons:")
     for key, value in report.items():
         if len(value) > 0:
             print(key + ": " + ", ".join(value))
+else:
+    print("Website is not flagged")
