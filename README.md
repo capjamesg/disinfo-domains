@@ -100,8 +100,7 @@ known_problematic_websites: abcnews.com.co
 
 ## Lists Consulted for Reliability Checks
 
-- [Wikipedia fake news website list](https://en.wikipedia.org/wiki/List_of_fake_news_websites)
-- [Infogram fake news website list](https://infogram.com/politifacts-fake-news-almanac-1gew2vjdxl912nj)
+See the `KNOWN_LISTS` variable in `source_trust.py` for a list of lists consulted for reliability checks.
 
 ## License
 
