@@ -4,6 +4,7 @@ import warnings
 # suppress UserWarning from Transformers
 warnings.filterwarnings("ignore")
 
+import csv
 from urllib.parse import urlparse
 
 import pandas as pd
@@ -11,7 +12,6 @@ import requests
 import torch
 import validators
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
-import csv
 
 tokenizer = AutoTokenizer.from_pretrained("stevhliu/my_awesome_model")
 model = AutoModelForSequenceClassification.from_pretrained("stevhliu/my_awesome_model")
@@ -24,8 +24,17 @@ CATEGORIES_TO_FLAG = {
 }
 
 # url2table heading
-KNOWN_LISTS = {"https://en.wikipedia.org/wiki/List_of_fake_news_websites": "Domain"}
+KNOWN_LISTS = {
+    "https://en.wikipedia.org/wiki/List_of_fake_news_websites": "Domain",
+    "https://en.wikipedia.org/wiki/List_of_miscellaneous_fake_news_websites": "Domain",
+    "https://en.wikipedia.org/wiki/List_of_corporate_disinformation_website_campaigns": "Domain",
+    "https://en.wikipedia.org/wiki/List_of_political_disinformation_website_campaigns_in_the_United_States": "Domain",
+    "https://en.wikipedia.org/wiki/List_of_political_disinformation_website_campaigns": "Domain",
+    "https://en.wikipedia.org/wiki/List_of_satirical_fake_news_websites": "Domain",
+    "https://en.wikipedia.org/wiki/List_of_fake_news_troll_farms": "Domain",
+}
 KNOWN_CSV_LISTS = {"infogram_fake_news_almanac.csv": "Site name"}
+
 
 def extract_categories(content: str) -> list:
     """
@@ -57,6 +66,7 @@ def extract_known_problematic_websites(url: str) -> list:
     # remove [.com] and nan
     result = [x.replace("[.]", ".").lower() for x in result if isinstance(x, str)]
     return result
+
 
 def extract_known_problematic_websites_csv(csv_file: str) -> list:
     """
