@@ -11,7 +11,7 @@ This tool could be further extended to do lookups on attributes like domain owne
 First, install the project from PyPi:
 
 ```bash
-pip install 
+pip install sourcetrust
 ```
 
 Then, you can use the tool as follows:
