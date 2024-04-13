@@ -1,0 +1,60 @@
+site_name: Source Trust
+site_url: https://supervision.roboflow.com/
+site_author: capjamesg
+site_description: Evaluate the trustworthiness of a website.
+repo_name: capjamesg/source-trust
+repo_url: https://github.com/capjamesg/source-trust
+edit_uri: https://github.com/capjamesg/source-trust/tree/main/docs
+copyright: capjamesg 2024. All rights reserved.
+
+nav:
+  - Home: index.md
+  - Reference: reference.md
+
+theme:
+  name: 'material'
+  features:
+    - content.code.copy
+    - content.action.edit
+    - content.tooltips
+
+    - content.code.annotate
+
+  palette:
+    # Palette for light mode
+    - scheme: default
+      primary: 'custom'
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: 'custom'
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+
+  font:
+    text: Roboto
+    code: Roboto Mono
+    features:
+      - content.code.copy
+      - content.code.annotate
+
+plugins:
+  - search
+  - mkdocstrings
+
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - attr_list
+  - md_in_html
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
