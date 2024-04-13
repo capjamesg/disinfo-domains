@@ -15,7 +15,12 @@ Analysis of wordpress.com:
 
 ```
 Website is not flagged.
-````
+```
+
+## Lists Consulted for Reliability Checks
+
+- Wikipedia
+- https://infogram.com/politifacts-fake-news-almanac-1gew2vjdxl912nj
 
 ## License
 
