@@ -17,6 +17,14 @@ Analysis of wordpress.com:
 Website is not flagged.
 ```
 
+Analysis of abcnews.com.co:
+
+```
+Website is flagged for the following reasons:
+negative_sentiment_categories: Fake news websites, Defunct websites
+known_problematic_websites: abcnews.com.co
+```
+
 ## Lists Consulted for Reliability Checks
 
 - Wikipedia
