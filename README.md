@@ -1,5 +1,10 @@
 # Source Trust
 
+[![version](https://badge.fury.io/py/sourcetrust.svg?)](https://badge.fury.io/py/sourcetrust)
+[![downloads](https://img.shields.io/pypi/dm/sourcetrust)](https://pypistats.org/packages/sourcetrust)
+[![license](https://img.shields.io/pypi/l/sourcetrust?)](https://github.com/capjamesg/sourcetrust/blob/main/LICENSE)
+[![python-version](https://img.shields.io/pypi/pyversions/sourcetrust)](https://badge.fury.io/py/sourcetrust)
+
 This tool can be used for consulting the trustworthiness of a website given publicly available information.
 
 This tool works by consulting Wikipedia to check if a website is assocaited with categories that may question the trustworthiness of a website (i.e. `Pseudoscience`), and looks up a website in publicly available, curated databases of websites associated with fake news.
