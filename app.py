@@ -21,6 +21,7 @@ model = AutoModelForSequenceClassification.from_pretrained("stevhliu/my_awesome_
 
 SENTIMENT_CLASSIFIER_CONFIDENCE = 0.8
 CONSENSUS_STRATEGY = "in_one_or_more"
+USER_AGENT = "Mozilla/5.0; source-trust/0.1"
 
 CATEGORIES_TO_FLAG = {
     "Satire": [
@@ -53,6 +54,18 @@ active_cache = {}
 
 
 def get_day_cache(day=datetime.datetime.now().strftime("%Y-%m-%d")):
+    """
+    Retrieve the cache for a specific day.
+
+    If the cache does not exist, an empty dictionary will be returned.
+
+    If the cache exists, the cache will be returned.
+
+    If the cache is for today, the active cache will be returned.
+
+    :param day: The day to retrieve the cache for.
+    :return: The cache for the specified day.
+    """
     print("Reading cache for", day)
 
     global active_cache
@@ -77,6 +90,20 @@ def get_day_cache(day=datetime.datetime.now().strftime("%Y-%m-%d")):
 
 
 def save_to_cache(cache, data, key, day=datetime.datetime.now().strftime("%Y-%m-%d")):
+    """
+    Save a value to the cache.
+
+    This function will set a value in the cache if the value does not exist, or merge the value with the existing value.
+
+    Merging is supported specifically because this package only deals with flat lists of items.
+
+    :param cache: The cache to save the value to.
+    :param data: The data to save.
+    :param key: The key to save the data under.
+    :param day: The day to save the data for.
+
+    :return: None
+    """
     cache_file = os.path.join(CACHE_DIRECTORY, day + ".json")
 
     if key not in cache:
@@ -87,8 +114,37 @@ def save_to_cache(cache, data, key, day=datetime.datetime.now().strftime("%Y-%m-
     with open(cache_file, "w") as f:
         json.dump(cache, f)
 
+    global active_cache
+    global active_cache_day
 
-def consensus(domain, n=3, consensus_strategy="in_one_or_more", consensus=0.75):
+    active_cache = cache
+    active_cache_day = day
+
+
+def consensus(
+    domain: str,
+    n: int = 3,
+    consensus_strategy: str = "in_one_or_more",
+    consensus: float = 0.75,
+):
+    """
+    Check for a consensus of categories.
+
+    This function will retrieve the categories for the last n days and check for a consensus of categories.
+
+    The following strategies are supported:
+
+    - percent: A percentage of the days must have the category.
+    - majority: A majority of the days must have the category.
+    - unanimous: All days must have the category.
+    - in_one_or_more: The category must be in one or more days.
+
+    :param domain: The domain to check for a consensus.
+    :param n: The number of days to check.
+    :param consensus_strategy: The strategy to use.
+    :param consensus: The consensus threshold.
+    :return: A list of problematic categories.
+    """
     days = [datetime.datetime.now().strftime("%Y-%m-%d")]
 
     if n == 1:
@@ -157,11 +213,37 @@ def extract_known_problematic_websites(cache: str, url: str) -> list:
     """
 
     heading = KNOWN_LISTS[url]
-    # if in today's cache, don't get
+
     if url in cache:
         result = cache["known_problematic_websites"]
     else:
-        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
+        last_modified = cache.get("last_modified", {}).get(url, None)
+
+        headers = {"User-Agent": USER_AGENT}
+
+        if last_modified:
+            headers["If-Modified-Since"] = last_modified
+
+        try:
+            response = requests.get(
+                url,
+                headers=headers,
+                timeout=10,
+            )
+        except requests.exceptions.RequestException as e:
+            print("Error fetching", url, e)
+            return []
+        
+        if not cache.get("last_modified"):
+            cache["last_modified"] = {}
+
+        cache["last_modified"][url] = response.headers.get("Last-Modified", None)
+        
+        if response.status_code == 304:
+            result = cache.get("known_problematic_websites", [])
+            save_to_cache(cache, result, "known_problematic_websites")
+            return result
+        
         tables = pd.read_html(response.text)
         flat_table = pd.concat(tables)
         result = flat_table[heading].tolist()
@@ -175,6 +257,8 @@ def extract_known_problematic_websites(cache: str, url: str) -> list:
 def extract_known_problematic_websites_csv(csv_file: str) -> list:
     """
     Extract known problematic websites from a specified CSV file.
+
+    This is not used, but may be useful in scenarios where you want to restrict websites you have identified as problematic.
 
     :param csv_file: The CSV file to extract the known problematic websites from.
     :return: A list of known problematic websites.
@@ -201,6 +285,10 @@ def get_wiki_page(title: str):
     """
     Get the content of a Wikipedia page.
 
+    This strategy is taken since the Wikipedia Categories API returns the category
+    associated with a redirect, not the page to which the redirects -- which may 
+    involve one or more hops -- point.
+
     :param title: The title of the Wikipedia page.
     :return: The content of the Wikipedia page.
     """
@@ -210,6 +298,7 @@ def get_wiki_page(title: str):
         + title
         + "&rvslots=*&rvprop=content&formatversion=2&format=json"
     )
+    
     response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
 
     response_code = response.status_code
@@ -315,7 +404,7 @@ def generate_report(url: str) -> dict:
 
             save_to_cache(cache, negative_sentiment_categories_today, domain)
 
-            consensus_report = consensus(domain, CONSENSUS_STRATEGY)
+            consensus_report = consensus(domain, consensus_strategy=CONSENSUS_STRATEGY)
 
             report["negative_sentiment_categories"] = consensus_report
 
