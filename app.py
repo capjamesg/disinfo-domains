@@ -233,17 +233,17 @@ def extract_known_problematic_websites(cache: str, url: str) -> list:
         except requests.exceptions.RequestException as e:
             print("Error fetching", url, e)
             return []
-        
+
         if not cache.get("last_modified"):
             cache["last_modified"] = {}
 
         cache["last_modified"][url] = response.headers.get("Last-Modified", None)
-        
+
         if response.status_code == 304:
             result = cache.get("known_problematic_websites", [])
             save_to_cache(cache, result, "known_problematic_websites")
             return result
-        
+
         tables = pd.read_html(response.text)
         flat_table = pd.concat(tables)
         result = flat_table[heading].tolist()
@@ -286,7 +286,7 @@ def get_wiki_page(title: str):
     Get the content of a Wikipedia page.
 
     This strategy is taken since the Wikipedia Categories API returns the category
-    associated with a redirect, not the page to which the redirects -- which may 
+    associated with a redirect, not the page to which the redirects -- which may
     involve one or more hops -- point.
 
     :param title: The title of the Wikipedia page.
@@ -298,7 +298,7 @@ def get_wiki_page(title: str):
         + title
         + "&rvslots=*&rvprop=content&formatversion=2&format=json"
     )
-    
+
     response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
 
     response_code = response.status_code
