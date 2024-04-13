@@ -11,7 +11,7 @@ import requests
 import torch
 import validators
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
-
+import csv
 
 tokenizer = AutoTokenizer.from_pretrained("stevhliu/my_awesome_model")
 model = AutoModelForSequenceClassification.from_pretrained("stevhliu/my_awesome_model")
@@ -25,7 +25,7 @@ CATEGORIES_TO_FLAG = {
 
 # url2table heading
 KNOWN_LISTS = {"https://en.wikipedia.org/wiki/List_of_fake_news_websites": "Domain"}
-
+KNOWN_CSV_LISTS = {"infogram_fake_news_almanac.csv": "Site name"}
 
 def extract_categories(content: str) -> list:
     """
@@ -53,6 +53,30 @@ def extract_known_problematic_websites(url: str) -> list:
     response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
     tables = pd.read_html(response.text)
     flat_table = pd.concat(tables)
+    result = flat_table[heading].tolist()
+    # remove [.com] and nan
+    result = [x.replace("[.]", ".").lower() for x in result if isinstance(x, str)]
+    return result
+
+def extract_known_problematic_websites_csv(csv_file: str) -> list:
+    """
+    Extract known problematic websites from a specified CSV file.
+
+    :param csv_file: The CSV file to extract the known problematic websites from.
+    :return: A list of known problematic websites.
+    """
+
+    heading = KNOWN_CSV_LISTS[csv_file]
+    # header row is always the first row
+    with open(csv_file, newline="") as f:
+        reader = csv.reader(f)
+        data = list(reader)
+    data[0] = [x.replace('"', "").strip() for x in data[0]]
+    data[0] = [x.replace("\ufeff", "") for x in data[0]]
+
+    flat_table = pd.DataFrame(data[1:], columns=data[0])
+    flat_table = flat_table.apply(lambda x: x.str.lower() if x.dtype == "object" else x)
+
     result = flat_table[heading].tolist()
     # remove [.com] and nan
     result = [x.replace("[.]", ".") for x in result if isinstance(x, str)]
@@ -117,7 +141,7 @@ def generate_report(url: str) -> dict:
     Generate a report for a given URL.
 
     The report contains the following:
-    
+
     - Flagged categories
     - Negative sentiment categories
     - Known problematic websites
@@ -138,36 +162,39 @@ def generate_report(url: str) -> dict:
 
     result, status_code = get_wiki_page(domain)
 
-    if status_code == 404:
-        print("Page not found")
-        exit()
-
-    categories = extract_categories(result)
-    sentiments = {category: get_sentiment(category) for category in categories}
-
     report = {"flagged_categories": [], "negative_sentiment_categories": [], "known_problematic_websites": []}
 
-    if any(sentiment == "negative" for sentiment in sentiments.values()):
-        report["negative_sentiment_categories"] = [
-            category for category, sentiment in sentiments.items() if sentiment == "negative"
-        ]
+    if status_code != 404:
+        categories = extract_categories(result)
+        sentiments = {category: get_sentiment(category) for category in categories}
 
-    for site in KNOWN_LISTS.items():
-        if any(domain in extract_known_problematic_websites(site) for domain in sentiments.keys()):
-            report["known_problematic_websites"] = [
-                domain for domain in sentiments.keys() if domain in extract_known_problematic_websites(site)
+        if any(sentiment == "negative" for sentiment in sentiments.values()):
+            report["negative_sentiment_categories"] = [
+                category for category, sentiment in sentiments.items() if sentiment == "negative"
             ]
 
-    for category, regexes in CATEGORIES_TO_FLAG.items():
-        for regex in regexes:
-            if any(regex.search(category) for category in categories):
-                report["flagged_categories"].append(category)
+        for site in KNOWN_LISTS.keys():
+            if any(domain in extract_known_problematic_websites(site) for domain in sentiments.keys()):
+                report["known_problematic_websites"].extend(
+                    [domain for domain in sentiments.keys() if domain in extract_known_problematic_websites(site)]
+                )
+
+        for category, regexes in CATEGORIES_TO_FLAG.items():
+            for regex in regexes:
+                if any(regex.search(category) for category in categories):
+                    report["flagged_categories"].append(category)
+
+    for site in KNOWN_CSV_LISTS.keys():
+        if any(domain in extract_known_problematic_websites_csv(site) for domain in [domain]):
+            report["known_problematic_websites"].extend(
+                [domain for domain in [domain] if domain in extract_known_problematic_websites_csv(site)]
+            )
 
     return report
 
 
-DOMAIN = "https://wordpress.com"
-report = generate_report(DOMAIN)
+DOMAIN = "ABCNews.com.co"
+report = generate_report(DOMAIN.lower())
 
 if any(len(value) > 0 for value in report.values()):
     print("Website is flagged for the following reasons:")
