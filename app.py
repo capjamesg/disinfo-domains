@@ -346,7 +346,7 @@ def get_sentiment(text: str) -> str:
     )
 
 
-def generate_report(url: str) -> dict:
+def generate_report(url: str, consensus = True) -> dict:
     """
     Generate a report for a given URL.
 
@@ -404,9 +404,12 @@ def generate_report(url: str) -> dict:
 
             save_to_cache(cache, negative_sentiment_categories_today, domain)
 
-            consensus_report = consensus(domain, consensus_strategy=CONSENSUS_STRATEGY)
+            if consensus:
+                consensus_report = consensus(domain, consensus_strategy=CONSENSUS_STRATEGY)
 
-            report["negative_sentiment_categories"] = consensus_report
+                report["negative_sentiment_categories"] = consensus_report
+            else:
+                report["negative_sentiment_categories"] = negative_sentiment_categories_today
 
         for site in KNOWN_LISTS.keys():
             if any(
