@@ -27,7 +27,13 @@ CATEGORIES_TO_FLAG = {
 KNOWN_LISTS = {"https://en.wikipedia.org/wiki/List_of_fake_news_websites": "Domain"}
 
 
-def extract_categories(content):
+def extract_categories(content: str) -> list:
+    """
+    Extract all categories from a Wikipedia page.
+
+    :param content: The content of the Wikipedia page.
+    :return: A list of categories.
+    """
     categories = re.findall(r"\[\[Category:(.*?)\]\]", content)
 
     categories = [re.sub(r"\|.*", "", category) for category in categories]
@@ -35,7 +41,14 @@ def extract_categories(content):
     return categories
 
 
-def extract_known_problematic_websites(url):
+def extract_known_problematic_websites(url: str) -> list:
+    """
+    Extract known problematic websites from a specified Wikipedia page.
+
+    :param url: The URL of the Wikipedia page.
+    :return: A list of known problematic websites.
+    """
+
     heading = KNOWN_LISTS[url]
     response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
     tables = pd.read_html(response.text)
@@ -46,7 +59,14 @@ def extract_known_problematic_websites(url):
     return result
 
 
-def get_wiki_page(title):
+def get_wiki_page(title: str):
+    """
+    Get the content of a Wikipedia page.
+
+    :param title: The title of the Wikipedia page.
+    :return: The content of the Wikipedia page.
+    """
+
     url = (
         "https://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles="
         + title
@@ -75,7 +95,14 @@ def get_wiki_page(title):
     return content, response_code
 
 
-def get_sentiment(text):
+def get_sentiment(text: str) -> str:
+    """
+    Get the sentiment of a category.
+
+    :param text: The text to get the sentiment for.
+    :return: The sentiment of the text.
+    """
+
     inputs = tokenizer(text, return_tensors="pt")
     outputs = model(**inputs)
     logits = outputs.logits
@@ -85,7 +112,20 @@ def get_sentiment(text):
     return "positive" if id2label == "LABEL_1" or torch.softmax(logits, dim=1)[0][0] < 0.8 else "negative"
 
 
-def generate_report(url):
+def generate_report(url: str) -> dict:
+    """
+    Generate a report for a given URL.
+
+    The report contains the following:
+    
+    - Flagged categories
+    - Negative sentiment categories
+    - Known problematic websites
+
+    :param url: The URL to generate a report for.
+    :return: A dictionary containing the report.
+    """
+
     if not validators.url(url):
         url = "https://" + url
 
@@ -113,14 +153,9 @@ def generate_report(url):
         ]
 
     for site in KNOWN_LISTS.items():
-        if any(
-            domain in extract_known_problematic_websites(site)
-            for domain in sentiments.keys()
-        ):
+        if any(domain in extract_known_problematic_websites(site) for domain in sentiments.keys()):
             report["known_problematic_websites"] = [
-                domain
-                for domain in sentiments.keys()
-                if domain in extract_known_problematic_websites(site)
+                domain for domain in sentiments.keys() if domain in extract_known_problematic_websites(site)
             ]
 
     for category, regexes in CATEGORIES_TO_FLAG.items():
