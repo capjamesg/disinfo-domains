@@ -1,6 +1,10 @@
 # source-trust
 
-Analyze the reliability of a source.
+This tool can be used for consulting the trustworthiness of a website given publicly available information.
+
+This tool works by consulting Wikipedia to check if a website is assocaited with categories that may question the trustworthiness of a website (i.e. `Pseudoscience`), and looks up a website in publicly available, curated databases of websites associated with fake news.
+
+This tool could be further extended to do lookups on attributes like domain ownership, affiliation with organizations known to be producers of untrustworthy content, and more.
 
 ## Example
 
