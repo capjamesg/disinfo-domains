@@ -1,3 +1,6 @@
+import datetime
+import json
+import os
 import re
 import warnings
 
@@ -15,6 +18,9 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 tokenizer = AutoTokenizer.from_pretrained("stevhliu/my_awesome_model")
 model = AutoModelForSequenceClassification.from_pretrained("stevhliu/my_awesome_model")
+
+SENTIMENT_CLASSIFIER_CONFIDENCE = 0.8
+CONSENSUS_STRATEGY = "in_one_or_more"
 
 CATEGORIES_TO_FLAG = {
     "Satire": [
@@ -35,6 +41,98 @@ KNOWN_LISTS = {
 }
 KNOWN_CSV_LISTS = {}
 
+CACHE_DIRECTORY = ".source-trust/cache"  # os.path.join("~", ".source-trust", "cache")
+
+os.makedirs(CACHE_DIRECTORY, exist_ok=True)
+
+global active_cache
+global active_cache_day
+
+active_cache_day = None
+active_cache = {}
+
+
+def get_day_cache(day=datetime.datetime.now().strftime("%Y-%m-%d")):
+    print("Reading cache for", day)
+
+    global active_cache
+    global active_cache_day
+
+    # check active cache for today
+    if active_cache_day == datetime.datetime.now().strftime(
+        "%Y-%m-%d"
+    ) and day == datetime.datetime.now().strftime("%Y-%m-%d"):
+        return active_cache
+
+    print("Reading cache for", day, "from file")
+
+    cache_file = os.path.join(CACHE_DIRECTORY, day + ".json")
+    active_cache_day = datetime.datetime.now().strftime("%Y-%m-%d")
+
+    if os.path.exists(cache_file):
+        with open(cache_file, "r") as f:
+            return json.load(f)
+
+    return {}
+
+
+def save_to_cache(cache, data, key, day=datetime.datetime.now().strftime("%Y-%m-%d")):
+    cache_file = os.path.join(CACHE_DIRECTORY, day + ".json")
+
+    if key not in cache:
+        cache[key] = data
+    else:
+        cache[key] = list(set(cache[key] + data))
+
+    with open(cache_file, "w") as f:
+        json.dump(cache, f)
+
+
+def consensus(domain, n=3, consensus_strategy="in_one_or_more", consensus=0.75):
+    days = [datetime.datetime.now().strftime("%Y-%m-%d")]
+
+    if n == 1:
+        return get_day_cache()[domain]
+
+    for num in range(1, n):
+        days.append(
+            (datetime.datetime.now() - datetime.timedelta(days=num)).strftime(
+                "%Y-%m-%d"
+            )
+        )
+
+    categories = [get_day_cache(day).get(domain, []) for day in days]
+
+    category_count = {}
+
+    for day in categories:
+        for category in day:
+            if category not in category_count:
+                category_count[category] = 1
+            else:
+                category_count[category] += 1
+
+    problematic_categories = []
+
+    if consensus_strategy == "percent":
+        for category, count in category_count.items():
+            if count >= n * consensus:
+                problematic_categories.append(category)
+    elif consensus_strategy == "majority":
+        for category, count in category_count.items():
+            if count >= n / 2:
+                problematic_categories.append(category)
+    elif consensus_strategy == "unanimous":
+        for category, count in category_count.items():
+            if count == n:
+                problematic_categories.append(category)
+    elif consensus_strategy == "in_one_or_more":
+        for category, count in category_count.items():
+            if count >= 1:
+                problematic_categories.append(category)
+
+    return problematic_categories
+
 
 def extract_categories(content: str) -> list:
     """
@@ -50,7 +148,7 @@ def extract_categories(content: str) -> list:
     return categories
 
 
-def extract_known_problematic_websites(url: str) -> list:
+def extract_known_problematic_websites(cache: str, url: str) -> list:
     """
     Extract known problematic websites from a specified Wikipedia page.
 
@@ -59,12 +157,18 @@ def extract_known_problematic_websites(url: str) -> list:
     """
 
     heading = KNOWN_LISTS[url]
-    response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
-    tables = pd.read_html(response.text)
-    flat_table = pd.concat(tables)
-    result = flat_table[heading].tolist()
-    # remove [.com] and nan
-    result = [x.replace("[.]", ".").lower() for x in result if isinstance(x, str)]
+    # if in today's cache, don't get
+    if url in cache:
+        result = cache["known_problematic_websites"]
+    else:
+        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
+        tables = pd.read_html(response.text)
+        flat_table = pd.concat(tables)
+        result = flat_table[heading].tolist()
+        # remove [.com] and nan
+        result = [x.replace("[.]", ".").lower() for x in result if isinstance(x, str)]
+
+    save_to_cache(cache, result, "known_problematic_websites")
     return result
 
 
@@ -116,7 +220,9 @@ def get_wiki_page(title: str):
     if "missing" in response.json()["query"]["pages"][0]:
         return None, 404
 
-    content = response.json()["query"]["pages"][0]["revisions"][0]["slots"]["main"]["content"]
+    content = response.json()["query"]["pages"][0]["revisions"][0]["slots"]["main"][
+        "content"
+    ]
 
     if content.startswith("#REDIRECT"):
         text = re.search(r"\[\[(.*?)\]\]", content).group(1)
@@ -143,7 +249,12 @@ def get_sentiment(text: str) -> str:
     predicted_class_idx = torch.argmax(logits).item()
     id2label = model.config.id2label[predicted_class_idx]
     # if LABEL_1 or confidence of LABEL_0 < 0.8
-    return "positive" if id2label == "LABEL_1" or torch.softmax(logits, dim=1)[0][0] < 0.8 else "negative"
+    return (
+        "positive"
+        if id2label == "LABEL_1"
+        or torch.softmax(logits, dim=1)[0][0] < SENTIMENT_CLASSIFIER_CONFIDENCE
+        else "negative"
+    )
 
 
 def generate_report(url: str) -> dict:
@@ -170,25 +281,55 @@ def generate_report(url: str) -> dict:
 
     domain = domain.strip()
 
+    report = {
+        "flagged_categories": [],
+        "negative_sentiment_categories": [],
+        "known_problematic_websites": [],
+        "all_categories": [],
+    }
+
+    # if domain is in cache, return it
+    cache = get_day_cache()
+
+    if domain in cache:
+        result, status_code = None, 200
+
     result, status_code = get_wiki_page(domain)
 
-    report = {"flagged_categories": [], "negative_sentiment_categories": [], "known_problematic_websites": [], "all_categories": []}
-
     if status_code != 404:
-        categories = extract_categories(result)
+        if domain in cache:
+            categories = cache[domain]
+        else:
+            categories = extract_categories(result)
+
         sentiments = {category: get_sentiment(category) for category in categories}
 
         report["all_categories"] = categories
 
         if any(sentiment == "negative" for sentiment in sentiments.values()):
-            report["negative_sentiment_categories"] = [
-                category for category, sentiment in sentiments.items() if sentiment == "negative"
+            negative_sentiment_categories_today = [
+                category
+                for category, sentiment in sentiments.items()
+                if sentiment == "negative"
             ]
 
+            save_to_cache(cache, negative_sentiment_categories_today, domain)
+
+            consensus_report = consensus(domain, CONSENSUS_STRATEGY)
+
+            report["negative_sentiment_categories"] = consensus_report
+
         for site in KNOWN_LISTS.keys():
-            if any(domain in extract_known_problematic_websites(site) for domain in sentiments.keys()):
+            if any(
+                domain in extract_known_problematic_websites(cache, site)
+                for domain in sentiments.keys()
+            ):
                 report["known_problematic_websites"].extend(
-                    [domain for domain in sentiments.keys() if domain in extract_known_problematic_websites(site)]
+                    [
+                        domain
+                        for domain in sentiments.keys()
+                        if domain in extract_known_problematic_websites(cache, site)
+                    ]
                 )
 
         for category, regexes in CATEGORIES_TO_FLAG.items():
@@ -197,9 +338,16 @@ def generate_report(url: str) -> dict:
                     report["flagged_categories"].append(category)
 
     for site in KNOWN_CSV_LISTS.keys():
-        if any(domain in extract_known_problematic_websites_csv(site) for domain in [domain]):
+        if any(
+            domain in extract_known_problematic_websites_csv(site)
+            for domain in [domain]
+        ):
             report["known_problematic_websites"].extend(
-                [domain for domain in [domain] if domain in extract_known_problematic_websites_csv(site)]
+                [
+                    domain
+                    for domain in [domain]
+                    if domain in extract_known_problematic_websites_csv(site)
+                ]
             )
 
     return report
