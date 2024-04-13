@@ -33,7 +33,7 @@ KNOWN_LISTS = {
     "https://en.wikipedia.org/wiki/List_of_satirical_fake_news_websites": "Domain",
     "https://en.wikipedia.org/wiki/List_of_fake_news_troll_farms": "Domain",
 }
-KNOWN_CSV_LISTS = {"infogram_fake_news_almanac.csv": "Site name"}
+KNOWN_CSV_LISTS = {}
 
 
 def extract_categories(content: str) -> list:
@@ -172,11 +172,13 @@ def generate_report(url: str) -> dict:
 
     result, status_code = get_wiki_page(domain)
 
-    report = {"flagged_categories": [], "negative_sentiment_categories": [], "known_problematic_websites": []}
+    report = {"flagged_categories": [], "negative_sentiment_categories": [], "known_problematic_websites": [], "all_categories": []}
 
     if status_code != 404:
         categories = extract_categories(result)
         sentiments = {category: get_sentiment(category) for category in categories}
+
+        report["all_categories"] = categories
 
         if any(sentiment == "negative" for sentiment in sentiments.values()):
             report["negative_sentiment_categories"] = [
@@ -209,6 +211,9 @@ report = generate_report(DOMAIN.lower())
 if any(len(value) > 0 for value in report.values()):
     print("Website is flagged for the following reasons:")
     for key, value in report.items():
+        if key == "all_categories":
+            continue
+
         if len(value) > 0:
             print(key + ": " + ", ".join(value))
 else:
