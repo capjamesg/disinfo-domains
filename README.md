@@ -9,6 +9,19 @@ Look up whether a domain is listed in a category associated with disinformation 
 
 This tool also consults Wikipedia lists of websites known to be associated with fake news.
 
+This tool is available in two forms:
+
+- A Python package that can be installed from PyPi, and;
+- A browser extension.
+
+The browser extension provides a visual indicator that a site may have been associated with distributing disinformation in the past. Yellow indicates a site has been found to have one or more categories associated with disinformation. Grey indicates no information was found to suggest the site has been associated with disinformation on Wikipedia.
+
+_**Note**: The absence of a flag does not mean a site is not associated with disinformation. It only means that the site has not been listed on Wikipedia as being associated with disinformation._
+
+Here is an example of the browser extension in use:
+
+![Browser extension example showing a yellow flag](assets/browser-extension-example.png)
+
 ## Getting Started
 
 First, install the project from PyPi:
