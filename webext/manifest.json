@@ -1,0 +1,32 @@
+{
+    "manifest_version": 3,
+    "name": "Misinformation Domains",
+    "version": "1.0",
+    "permissions": [
+      "tabs",
+      "webRequest",
+      "storage",
+      "activeTab"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "background": {
+      "service_worker": "background.js"
+    },
+    "content_scripts": [
+      {
+        "matches": ["<all_urls>"],
+        "js": ["page.js"]
+      }
+    ],
+    "action": {
+      "default_popup": "page.html",
+      "default_icon": {
+        "16": "icon-grey.png",
+        "48": "icon-grey.png",
+        "128": "icon-grey.png"
+      }
+    }
+  }
+  
