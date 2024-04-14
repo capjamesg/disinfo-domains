@@ -20,7 +20,7 @@ _**Note**: The absence of a flag does not mean a site is not associated with dis
 
 Here is an example of the browser extension in use:
 
-![Browser extension example showing a yellow flag](assets/browser-extension-example.png)
+![Browser extension example showing a yellow flag](assets/browser-extension-example.png?1)
 
 ## Getting Started
 
