@@ -1,10 +1,10 @@
-site_name: Source Trust
-site_url: https://supervision.roboflow.com/
+site_name: Disinfo Domains
+site_url: https://capjamesg.github.io/disinfodomains/
 site_author: capjamesg
-site_description: Evaluate the trustworthiness of a website.
-repo_name: capjamesg/source-trust
-repo_url: https://github.com/capjamesg/source-trust
-edit_uri: https://github.com/capjamesg/source-trust/tree/main/docs
+site_description: Look up whether a domain is listed in a category associated with disinformation or fake news on Wikipedia.
+repo_name: capjamesg/disinfo-domains
+repo_url: https://github.com/capjamesg/disinfo-domains
+edit_uri: https://github.com/capjamesg/disinfo-domains/tree/main/docs
 copyright: capjamesg 2024. All rights reserved.
 
 nav:

@@ -1,23 +1,21 @@
-# Source Trust
+# Disinformation Domains
 
-This tool can be used for consulting the trustworthiness of a website given publicly available information.
+Look up whether a domain is listed in a category associated with disinformation or fake news on Wikipedia.
 
-This tool works by consulting Wikipedia to check if a website is assocaited with categories that may question the trustworthiness of a website (i.e. `Pseudoscience`), and looks up a website in publicly available, curated databases of websites associated with fake news.
-
-This tool could be further extended to do lookups on attributes like domain ownership, affiliation with organizations known to be producers of untrustworthy content, and more.
+This tool also consults Wikipedia lists of websites known to be associated with fake news.
 
 ## Getting Started
 
 First, install the project from PyPi:
 
 ```bash
-pip install sourcetrust
+pip install disinfo-domains
 ```
 
 Then, you can use the tool as follows:
 
 ```python
-from source_trust import generate_report
+from disinfo_domains import generate_report
 
 
 DOMAIN = "ABCNews.com.co"
@@ -37,12 +35,12 @@ else:
 
 ## Path of a Request
 
-Source Trust completes several steps to determine the trustworthiness of a website.
+This package completes several steps to determine whether Wikipedia reports a site has been associated with disinformation.
 
-First, Source Trust opens the cache of the day. This cache includes:
+First, this tool opens the cache of the day. This cache includes:
 
 1. The categories from all previous requests made that day.
-2. The known problematic websites listed on Wikipedia's untrustworthy websites lists retrieved that day.
+2. The known problematic websites listed on Wikipedia's disinformation websites lists retrieved that day.
 
 If the site has not yet been retrieved, it is retrieved and categories are extracted from the wiki page.
 
@@ -61,19 +59,19 @@ Next, the following checks take place:
 
 Negative sentiment is determined using a pre-trained sentence classifier available on Hugging Face.
 
-The consensus algorithm is implemented to prevent against spam or malicious edits on Wikipedia compromising the integrity of the tool. For example, if a reputable site is given a negative sentiment category on Wikipedia (i.e. Pseudoscience), the consensus algorithm will prevent the site from being flagged as untrustworthy.
+The consensus algorithm is implemented to prevent against spam or malicious edits on Wikipedia compromising the integrity of the tool. For example, if a reputable site is given a negative sentiment category on Wikipedia (i.e. Pseudoscience), the consensus algorithm will prevent the site from being flagged as potentially spreading disinformation.
 
-This only works if there is at least one day of data available in the cache. If there is no data available, the site will be flagged as untrustworthy if it has any negative sentiment categories.
+This only works if there is at least one day of data available in the cache. If there is no data available, the site will be flagged as potentially spreading disinformation if it has any negative sentiment categories.
 
-To counter this, any extension using this tool should consider showing all categories to users directly, allowing people to make their own decisions about the trustworthiness of a site.
+To counter this, any extension using this tool should consider showing all categories to users directly, allowing people to make their own decisions about a website.
 
 ## Limitations
 
-Trust is considered at the level of the domain. Thus, using this tool one could derive that `example.com` is trustworthy, but not specifically `example.com/example`.
+This tool works at the level of the domain. Thus, using this tool one could derive that `example.com` spreads fake news, but not specifically `example.com/example`.
 
-Trust is not analyzed at the subdomain level, unless a subdomain is specifically logged in a database used by this tooland noted as untrustworthy. Thus, if `example.com` is considered trustworthy, `example.example.com` would not have a ranking unless it were logged in a database used by this tool and noted as untrustworthy.
+This project is not specifically analyzed at the subdomain level, unless a subdomain is logged on Wikipedia as potentially spreading fake news. Thus, if `example.com` has no ranking, `example.example.com` would not have a ranking either it were logged in a database used by this tool and noted as potentially spreading disinformation.
 
-This tool is not meant to be a substitute to analyzing source material to verify the veracity and reliability of information in an article.
+This tool is not meant to be a substitute to analyzing source material to verify the veracity and reliability of information in an article. It only looks up whether a domain has been listed as being associated with disinformation on Wikipedia.
 
 ## Example
 
@@ -100,11 +98,11 @@ known_problematic_websites: abcnews.com.co
 
 ## Lists Consulted for Reliability Checks
 
-See the `KNOWN_LISTS` variable in `source_trust.py` for a list of lists consulted for reliability checks.
+See the `KNOWN_LISTS` variable in `disinfodomains/disinfodomains.py` for a list of lists consulted for reliability checks.
 
 ## Contributing
 
-Have an idea on how this project can be better? Leave an Issue on the [project GitHub repository](https://github.com/capjamesg/source-trust). Want to contribute? Fork the project and make a pull request.
+Have an idea on how this project can be better? Leave an Issue on the [project GitHub repository](https://github.com/capjamesg/disinfo-domains). Want to contribute? Fork the project and make a pull request.
 
 ## License
 
