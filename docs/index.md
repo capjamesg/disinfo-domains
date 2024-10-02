@@ -15,7 +15,7 @@ pip install disinfo-domains
 Then, you can use the tool as follows:
 
 ```python
-from disinfo_domains import generate_report
+from disinfodomains import generate_report
 
 
 DOMAIN = "ABCNews.com.co"
